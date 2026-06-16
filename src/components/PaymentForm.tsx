@@ -2,9 +2,10 @@ import React, { useState } from "react";
 
 interface PaymentFormProps {
   onSuccess: (transactionId: string) => void;
+  onError: (error: string) => void;
 }
 
-export function PaymentForm({ onSuccess }: PaymentFormProps) {
+export function PaymentForm({ onSuccess, onError }: PaymentFormProps) {
   const [cardNumber, setCardNumber] = useState("");
   const [amount, setAmount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -14,16 +15,35 @@ export function PaymentForm({ onSuccess }: PaymentFormProps) {
     e.preventDefault();
     setLoading(true);
 
-    // BUG: no input validation before sending to API
-    const res = await fetch("/api/payment", {
-      method: "POST",
-      body: JSON.stringify({ cardNumber, amount }),
-    });
+    // Input validation before sending to API
+    if (!cardNumber || amount <= 0) {
+      onError("Invalid card number or amount");
+      setLoading(false);
+      return;
+    }
 
-    // BUG: missing error handling — crashes on non-200
-    const data = await res.json();
-    onSuccess(data.transactionId);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/payment", {
+        method: "POST",
+        body: JSON.stringify({ cardNumber, amount }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 422) {
+          const data = await res.json();
+          onError(data.error);
+        } else {
+          onError("Failed to process payment");
+        }
+      } else {
+        const data = await res.json();
+        onSuccess(data.transactionId);
+      }
+    } catch (error) {
+      onError("Failed to process payment");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
