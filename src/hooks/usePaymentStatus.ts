@@ -9,8 +9,6 @@ export function usePaymentStatus(transactionId: string, pollIntervalMs = 2000) {
   useEffect(() => {
     if (!transactionId) return;
 
-    // BUG: interval is not cleared when component unmounts — memory leak
-    // and state updates on an unmounted component cause React warning
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/payment/status/${transactionId}`);
@@ -25,7 +23,7 @@ export function usePaymentStatus(transactionId: string, pollIntervalMs = 2000) {
       }
     }, pollIntervalMs);
 
-    // missing: return () => clearInterval(interval);
+    return () => clearInterval(interval);
   }, [transactionId, pollIntervalMs]);
 
   return { status, error };
